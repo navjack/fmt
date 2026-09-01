@@ -117,8 +117,16 @@ import std;
 #  define FMT_USE_CONSTEVAL 0
 #elif FMT_LIBCPP_VERSION && FMT_LIBCPP_VERSION < 10000
 #  define FMT_USE_CONSTEVAL 0
-#elif defined(__apple_build_version__) && __apple_build_version__ < 14000029L
-#  define FMT_USE_CONSTEVAL 0  // consteval is broken in Apple clang < 14.
+#elif defined(__apple_build_version__)
+// consteval is broken in Apple clang < 14, and 10.2.2's consteval format-string
+// parsing is also rejected by much newer AppleClang (21 fails on line ~757,
+// `format_str_.remove_prefix(...)`, as "subexpression not valid in a constant
+// expression"). It breaks fmt's own os.cc and format-inl.h, not just consumer
+// code, so disable consteval on Apple entirely: format strings are then checked
+// at run time, which is the same path fmt uses for every older compiler.
+// Setting this here rather than via a build flag keeps every translation unit
+// that includes this header consistent. Revisit when fmt is bumped past 10.2.2.
+#  define FMT_USE_CONSTEVAL 0
 #elif FMT_MSC_VERSION && FMT_MSC_VERSION < 1929
 #  define FMT_USE_CONSTEVAL 0  // consteval is broken in MSVC VS2019 < 16.10.
 #elif defined(__cpp_consteval)
