@@ -1773,9 +1773,12 @@ TEST(format_test, print) {
                "Don't panic!\n");
 }
 
+struct close_file {
+  void operator()(FILE* file) const { std::fclose(file); }
+};
+
 TEST(format_test, print_initializes_and_grows_real_stream_buffer) {
-  auto file = std::unique_ptr<FILE, decltype(&std::fclose)>(std::tmpfile(),
-                                                          &std::fclose);
+  auto file = std::unique_ptr<FILE, close_file>(std::tmpfile());
   ASSERT_NE(file.get(), nullptr);
   auto middle = std::string(10000, 'x');
   fmt::print(file.get(), "{}", "first");
@@ -1790,8 +1793,7 @@ TEST(format_test, print_initializes_and_grows_real_stream_buffer) {
 }
 
 TEST(format_test, print_readonly_stream_releases_lock_on_error) {
-  auto file = std::unique_ptr<FILE, decltype(&std::fclose)>(
-      safe_fopen(__FILE__, "r"), &std::fclose);
+  auto file = std::unique_ptr<FILE, close_file>(safe_fopen(__FILE__, "r"));
   ASSERT_NE(file.get(), nullptr);
   EXPECT_THROW(fmt::print(file.get(), "{}", 42), std::system_error);
 #ifndef _WIN32
