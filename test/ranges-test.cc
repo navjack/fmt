@@ -681,7 +681,7 @@ TEST(ranges_test, input_range_join_overload) {
       fmt::format("{}", fmt::join(std::views::istream<std::string>(iss), ".")));
 }
 
-namespace views_filter_view_test {
+namespace {
 struct codec_mask {
   static constexpr auto kCodecs = std::array{0, 1, 2, 3};
   int except{};
@@ -692,10 +692,9 @@ auto format_as(codec_mask mask) {
   return codec_mask::kCodecs |
          std::views::filter([mask](auto c) { return c != mask.except; });
 }
-}  // namespace views_filter_view_test
+}  // namespace
 
 TEST(ranges_test, format_as_with_ranges_mutable_begin_end) {
-  using namespace views_filter_view_test;
   {
     auto make_filter_view = []() {
       return codec_mask::kCodecs |
