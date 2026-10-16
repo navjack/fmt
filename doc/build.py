@@ -26,18 +26,10 @@ def create_build_env(venv_dir='virtualenv'):
   # Create virtualenv.
   if not os.path.exists(venv_dir):
     check_call(['python3', '-m', 'venv', venv_dir])
-  # Install Sphinx and Breathe. Require the exact version of Sphinx which is
-  # compatible with Breathe.
+  # Resolve the documentation stack together for the hosted Python 3.12 build.
   pip = Pip(venv_dir)
-  pip.install('wheel')
-  pip.install('six')
-  # See: https://github.com/sphinx-doc/sphinx/issues/9777
-  pip.install('docutils==0.17.1')
-  # Jinja2 >= 3.1 incompatible with sphinx 3.3.0
-  # See: https://github.com/sphinx-doc/sphinx/issues/10291
-  pip.install('Jinja2<3.1')
-  pip.install('sphinx==3.3.0')
-  pip.install('michaeljones/breathe', 'v4.25.0')
+  check_call([pip.path, 'install', 'wheel', 'six', 'docutils==0.21.2',
+              'sphinx==7.4.7', 'breathe==4.35.0'])
 
 def build_docs(version='dev', **kwargs):
   doc_dir = kwargs.get('doc_dir', os.path.dirname(os.path.realpath(__file__)))

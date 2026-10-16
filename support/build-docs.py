@@ -20,15 +20,13 @@ build.create_build_env()
 html_dir = build.build_docs()
 
 repo = 'fmtlib.github.io'
-branch = os.environ['GITHUB_REF']
+branch = os.environ.get('GITHUB_REF')
 is_ci = 'CI' in os.environ
-if is_ci and branch != 'refs/heads/master':
-    print('Branch: ' + branch)
-    exit(0) # Ignore non-master branches
-if is_ci and 'KEY' not in os.environ:
-    # Don't update the repo if building in CI from an account that doesn't have
-    # push access.
-    print('Skipping update of ' + repo)
+if is_ci and (os.environ.get('GITHUB_REPOSITORY') != 'fmtlib/fmt' or
+              branch != 'refs/heads/master' or not os.environ.get('KEY')):
+    # The upstream site is published only by its owning repository. Forks
+    # still build the complete documentation and retain the HTML artifact.
+    print('Documentation built at ' + html_dir)
     exit(0)
 
 # Clone the fmtlib.github.io repo.

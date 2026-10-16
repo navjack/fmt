@@ -750,10 +750,10 @@ TEST(chrono_test, unsigned_duration) {
 
 TEST(chrono_test, weekday) {
   auto loc = get_locale("es_ES.UTF-8");
-  std::locale::global(loc);
+  auto old_loc = std::locale::global(loc);
 
   auto sat = fmt::weekday(6);
-  
+
   auto tm = std::tm();
   tm.tm_wday = static_cast<int>(sat.c_encoding());
 
@@ -763,11 +763,12 @@ TEST(chrono_test, weekday) {
   EXPECT_EQ(fmt::format("{:%a}", tm), "Sat");
 
   if (loc != std::locale::classic()) {
-    auto saturdays = std::vector<std::string>{"sáb", "sá."};
-    EXPECT_THAT(saturdays, Contains(fmt::format(loc, "{:L}", sat)));
-    EXPECT_THAT(saturdays, Contains(fmt::format(loc, "{:%a}", sat)));
-    EXPECT_THAT(saturdays, Contains(fmt::format(loc, "{:%a}", tm)));
+    auto expected = format_tm(tm, "%a", loc);
+    EXPECT_EQ(expected, fmt::format(loc, "{:L}", sat));
+    EXPECT_EQ(expected, fmt::format(loc, "{:%a}", sat));
+    EXPECT_EQ(expected, fmt::format(loc, "{:%a}", tm));
   }
+  std::locale::global(old_loc);
 }
 
 TEST(chrono_test, cpp20_duration_subsecond_support) {

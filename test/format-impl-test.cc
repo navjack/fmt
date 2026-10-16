@@ -307,19 +307,21 @@ struct slow_float {
 auto format_as(slow_float f) -> float { return f; }
 
 namespace std {
-template <> struct is_floating_point<double_double> : std::true_type {};
 template <> struct numeric_limits<double_double> {
   // is_iec559 is true for double-double in libstdc++.
   static constexpr bool is_iec559 = true;
   static constexpr int digits = 106;
 };
 
-template <> struct is_floating_point<slow_float> : std::true_type {};
 template <> struct numeric_limits<slow_float> : numeric_limits<float> {};
 }  // namespace std
 
 FMT_BEGIN_NAMESPACE
 namespace detail {
+// Customize fmt's numeric classification; standard type traits cannot be
+// specialized for user-defined types.
+template <> struct is_floating_point<double_double> : std::true_type {};
+template <> struct is_floating_point<slow_float> : std::true_type {};
 template <> struct is_fast_float<slow_float> : std::false_type {};
 namespace dragonbox {
 template <> struct float_info<slow_float> {
@@ -333,15 +335,13 @@ FMT_END_NAMESPACE
 TEST(format_impl_test, write_double_double) {
   auto s = std::string();
   fmt::detail::write<char>(std::back_inserter(s), double_double(42), {});
-  // Specializing is_floating_point is broken in MSVC.
-  if (!FMT_MSC_VERSION) EXPECT_EQ(s, "42");
+  EXPECT_EQ(s, "42");
 }
 
 TEST(format_impl_test, write_dragon_even) {
   auto s = std::string();
   fmt::detail::write<char>(std::back_inserter(s), slow_float(33554450.0f), {});
-  // Specializing is_floating_point is broken in MSVC.
-  if (!FMT_MSC_VERSION) EXPECT_EQ(s, "33554450");
+  EXPECT_EQ(s, "33554450");
 }
 
 #if defined(_WIN32) && !defined(FMT_USE_WRITE_CONSOLE)

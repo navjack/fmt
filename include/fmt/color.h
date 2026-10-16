@@ -8,6 +8,8 @@
 #ifndef FMT_COLOR_H_
 #define FMT_COLOR_H_
 
+#include <algorithm>  // std::copy
+
 #include "format.h"
 
 FMT_BEGIN_NAMESPACE
