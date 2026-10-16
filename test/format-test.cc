@@ -22,6 +22,7 @@
 #include <cstring>             // std::strlen
 #include <iterator>            // std::back_inserter
 #include <list>                // std::list
+#include <memory>              // std::unique_ptr
 #include <mutex>               // std::mutex
 #include <string>              // std::string
 #include <thread>              // std::thread
@@ -1770,6 +1771,41 @@ TEST(format_test, print) {
   EXPECT_WRITE(stdout, fmt::println("Don't {}!", "panic"), "Don't panic!\n");
   EXPECT_WRITE(stderr, fmt::println(stderr, "Don't {}!", "panic"),
                "Don't panic!\n");
+}
+
+TEST(format_test, print_initializes_and_grows_real_stream_buffer) {
+  auto file = std::unique_ptr<FILE, decltype(&std::fclose)>(std::tmpfile(),
+                                                          &std::fclose);
+  ASSERT_NE(file.get(), nullptr);
+  auto middle = std::string(10000, 'x');
+  fmt::print(file.get(), "{}", "first");
+  fmt::print(file.get(), "{}", middle);
+  fmt::print(file.get(), "{}", "last");
+  ASSERT_EQ(std::fseek(file.get(), 0, SEEK_SET), 0);
+  auto expected = "first" + middle + "last";
+  auto actual = std::string(expected.size(), '\0');
+  EXPECT_EQ(std::fread(&actual[0], 1, actual.size(), file.get()), expected.size());
+  EXPECT_EQ(actual, expected);
+  EXPECT_EQ(std::fgetc(file.get()), EOF);
+}
+
+TEST(format_test, print_readonly_stream_releases_lock_on_error) {
+  auto file = std::unique_ptr<FILE, decltype(&std::fclose)>(
+      safe_fopen(__FILE__, "r"), &std::fclose);
+  ASSERT_NE(file.get(), nullptr);
+  EXPECT_THROW(fmt::print(file.get(), "{}", 42), std::system_error);
+#ifndef _WIN32
+  bool unlocked = false;
+  auto probe = std::thread([&]() {
+    if (ftrylockfile(file.get()) == 0) {
+      unlocked = true;
+      funlockfile(file.get());
+    }
+  });
+  probe.join();
+  EXPECT_TRUE(unlocked);
+  if (!unlocked) funlockfile(file.get());
+#endif
 }
 
 TEST(format_test, big_print) {

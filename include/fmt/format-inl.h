@@ -1481,21 +1481,18 @@ template <typename F> class glibc_file : public file_base<F> {
  private:
   enum {
     line_buffered = 0x200,  // _IO_LINE_BUF
-    unbuffered = 2          // _IO_UNBUFFERED
+    unbuffered = 2,         // _IO_UNBUFFERED
+    no_writes = 8,          // _IO_NO_WRITES
+    currently_putting = 0x800  // _IO_CURRENTLY_PUTTING
   };
 
  public:
   using file_base<F>::file_base;
 
-  auto is_buffered() const -> bool {
-    return (this->file_->_flags & unbuffered) == 0;
-  }
-
-  void init_buffer() {
-    if (this->file_->_IO_write_ptr) return;
-    // Force buffer initialization by placing and removing a char in a buffer.
-    putc_unlocked(0, this->file_);
-    --this->file_->_IO_write_ptr;
+  auto has_write_buffer() const -> bool {
+    return (this->file_->_flags &
+            (currently_putting | unbuffered | no_writes)) == currently_putting &&
+           this->file_->_IO_write_ptr != nullptr;
   }
 
   // Returns the file's read buffer.
@@ -1525,23 +1522,17 @@ template <typename F> class glibc_file : public file_base<F> {
 template <typename F> class apple_file : public file_base<F> {
  private:
   enum {
-    line_buffered = 1,  // __SNBF
-    unbuffered = 2      // __SLBF
+    line_buffered = 1,  // __SLBF
+    unbuffered = 2,     // __SNBF
+    writing = 8        // __SWR
   };
 
  public:
   using file_base<F>::file_base;
 
-  auto is_buffered() const -> bool {
-    return (this->file_->_flags & unbuffered) == 0;
-  }
-
-  void init_buffer() {
-    if (this->file_->_p) return;
-    // Force buffer initialization by placing and removing a char in a buffer.
-    putc_unlocked(0, this->file_);
-    --this->file_->_p;
-    ++this->file_->_w;
+  auto has_write_buffer() const -> bool {
+    return (this->file_->_flags & (writing | unbuffered)) == writing &&
+           this->file_->_p != nullptr;
   }
 
   auto get_read_buffer() const -> span<const char> {
@@ -1576,9 +1567,8 @@ template <typename F> class fallback_file : public file_base<F> {
  public:
   using file_base<F>::file_base;
 
-  auto is_buffered() const -> bool { return false; }
+  auto has_write_buffer() const -> bool { return false; }
   auto needs_flush() const -> bool { return false; }
-  void init_buffer() {}
 
   auto get_read_buffer() const -> span<const char> {
     return {&next_, has_next_ ? 1u : 0u};
@@ -1612,6 +1602,18 @@ inline auto get_file(FILE* f, ...) -> fallback_file<FILE> { return f; }
 
 using file_ref = decltype(get_file(static_cast<FILE*>(nullptr), 0));
 
+class file_lock {
+ private:
+  FILE* file_;
+
+ public:
+  explicit file_lock(FILE* file) : file_(file) { flockfile(file_); }
+  file_lock(const file_lock&) = delete;
+  auto operator=(const file_lock&) -> file_lock& = delete;
+  ~file_lock() { funlockfile(file_); }
+  auto get() const -> FILE* { return file_; }
+};
+
 class file_print_buffer : public buffer<char> {
  private:
   file_ref file_;
@@ -1627,17 +1629,14 @@ class file_print_buffer : public buffer<char> {
   }
 
  public:
-  explicit file_print_buffer(FILE* f) : buffer(grow, size_t()), file_(f) {
-    flockfile(f);
-    file_.init_buffer();
+  explicit file_print_buffer(file_lock& lock)
+      : buffer(grow, size_t()), file_(lock.get()) {
     auto buf = file_.get_write_buffer();
     set(buf.data, buf.size);
   }
   ~file_print_buffer() {
     file_.advance_write_buffer(size());
-    bool flush = file_.needs_flush();
-    funlockfile(file_);
-    if (flush) fflush(file_);
+    if (file_.needs_flush()) fflush(file_);
   }
 };
 
@@ -1685,9 +1684,16 @@ FMT_FUNC void vprint_buffered(std::FILE* f, string_view fmt, format_args args) {
 }
 
 FMT_FUNC void vprint(std::FILE* f, string_view fmt, format_args args) {
-  if (!detail::file_ref(f).is_buffered()) return vprint_buffered(f, fmt, args);
-  auto&& buffer = detail::file_print_buffer(f);
-  return detail::vformat_to(buffer, fmt, args);
+  {
+    detail::file_lock lock(f);
+    if (detail::file_ref(f).has_write_buffer()) {
+      detail::file_print_buffer buffer(lock);
+      return detail::vformat_to(buffer, fmt, args);
+    }
+  }
+  // Let stdio initialize or change the stream's write state. Buffer metadata
+  // is inspected only while locked; formatting the fallback stays unlocked.
+  vprint_buffered(f, fmt, args);
 }
 
 FMT_FUNC void vprintln(std::FILE* f, string_view fmt, format_args args) {
