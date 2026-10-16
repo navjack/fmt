@@ -497,16 +497,18 @@ The ``'n'`` option formats the range without the opening and closing brackets.
 
 The available presentation types for `range_type` are:
 
-+---------+----------------------------------------------------------+
-| Type    | Meaning                                                  |
-+=========+==========================================================+
-| none    | Default format.              |
-+---------+----------------------------------------------------------+
-| ``'s'`` | String format. The range is formatted as a string.       |                                                     
-+---------+----------------------------------------------------------+
-| ``'?s'``| Debug format. The range is formatted as an escaped       |        
-|         | string.                                                  |
-+---------+----------------------------------------------------------+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 85
+
+   * - Type
+     - Meaning
+   * - none
+     - Default format.
+   * - ``'s'``
+     - String format. The range is formatted as a string.
+   * - ``'?s'``
+     - Debug format. The range is formatted as an escaped string.
 
 If `range_type` is ``'s'`` or ``'?s'``, the range element type must be a
 character type. The ``'n'`` option and `range_underlying_spec` are mutually

@@ -87,7 +87,7 @@ Compile-time format string checks are enabled by default on compilers
 that support C++20 ``consteval``. On older compilers you can use the
 :ref:`FMT_STRING <legacy-checks>`: macro defined in ``fmt/format.h`` instead.
 
-Unused arguments are allowed as in Python's `str.format` and ordinary functions.
+Unused arguments are allowed as in Python's ``str.format`` and ordinary functions.
 
 .. doxygenclass:: fmt::basic_format_string
    :members:
