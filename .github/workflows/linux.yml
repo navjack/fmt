@@ -12,14 +12,14 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        cxx: [g++, clang++]
+        cxx: [g++-14, clang++]
         build_type: [Debug, Release]
         std: [11, 17, 20]
         shared: [OFF]
         include:
-          - {cxx: g++, build_type: Debug, std: 14, shared: OFF}
+          - {cxx: g++-14, build_type: Debug, std: 14, shared: OFF}
           - {cxx: clang++, build_type: Debug, std: 14, shared: OFF}
-          - {cxx: g++, build_type: Debug, std: 20, shared: ON}
+          - {cxx: g++-14, build_type: Debug, std: 20, shared: ON}
           - {cxx: clang++, build_type: Debug, std: 20, shared: ON}
     env:
       TZ: Asia/Yekaterinburg
@@ -28,7 +28,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends g++ clang cmake locales-all
+          sudo apt-get install -y --no-install-recommends g++-14 clang cmake locales-all
       - name: Configure
         env:
           CXX: ${{ matrix.cxx }}
