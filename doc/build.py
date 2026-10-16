@@ -29,7 +29,7 @@ def create_build_env(venv_dir='virtualenv'):
   # Resolve the documentation stack together for the hosted Python 3.12 build.
   pip = Pip(venv_dir)
   check_call([pip.path, 'install', 'wheel', 'six', 'docutils==0.21.2',
-              'sphinx==7.4.7', 'breathe==4.35.0'])
+              'sphinx==7.4.7', 'breathe==4.35.0', 'sphinxcontrib-jquery==4.1'])
 
 def build_docs(version='dev', **kwargs):
   doc_dir = kwargs.get('doc_dir', os.path.dirname(os.path.realpath(__file__)))
